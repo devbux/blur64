@@ -1,0 +1,51 @@
+{
+  "name": "blur64",
+  "version": "1.0.0",
+  "description": "Generate base64-encoded blurred image placeholders using Sharp.",
+  "author": "devbux",
+  "license": "MIT",
+  "repository": "devbux/blur64.git",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:esm && npm run build:cjs && npm run build:types",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --external:sharp --minify --tree-shaking=true --platform=node",
+    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.cjs --external:sharp --minify --tree-shaking=true --platform=node",
+    "build:types": "tsc --emitDeclarationOnly"
+  },
+  "keywords": [
+    "image",
+    "blur",
+    "base64",
+    "sharp",
+    "placeholder",
+    "blur64",
+    "blurhash"
+  ],
+  "peerDependencies": {
+    "sharp": "^0.34.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "@types/sharp": "^0.31.1",
+    "esbuild": "^0.24.2",
+    "sharp": "^0.34.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "browser": false,
+  "sideEffects": false
+}
