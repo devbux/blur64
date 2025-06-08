@@ -41,7 +41,7 @@ async function example() {
 
 Use `blur64` in a Next.js app to generate blurred image placeholders server-side.
 
-```tsx app/page.tsx
+```tsx
 // app/page.tsx
 import Image from "next/image";
 import { blur64Image } from "blur64";
