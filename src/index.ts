@@ -1,28 +1,30 @@
-import sharp, { type Sharp } from "sharp";
+import sharp from "sharp";
+
+const supportedFormats = ["avif", "webp", "jpeg", "png"] as const;
 
 export interface Blur64Options {
   src: string | Buffer;
-  size?: { width: number; height: number };
-  scale?: number; // 0 < scale <= 1
-  blurRadius?: number;
-  format?: "avif" | "jpeg" | "png" | "webp";
-  quality?: number; // 0-100, only applies to JPEG, AVIF, and WebP
+  scale?: number;
+  size?: number | { width: number; height: number };
+  ratio?: number | { width: number; height: number };
+  blurRadius?: number | boolean | sharp.BlurOptions;
+  format?: typeof supportedFormats[number];
+  formatOptions?: sharp.OutputOptions | sharp.AvifOptions | sharp.WebpOptions | sharp.JpegOptions | sharp.PngOptions;
+  quality?: number;
   brightness?: number;
   saturation?: number;
   hue?: number;
   lightness?: number;
-  fit?: Parameters<Sharp["resize"]>[0]["fit"];
-  kernel?: Parameters<Sharp["resize"]>[0]["kernel"];
-  retries?: number; // Only applies to URL fetch
+  fit?: keyof sharp.FitEnum;
+  kernel?: keyof sharp.KernelEnum;
+  retries?: number;
+  retryDelay?: number;
 }
 
-export interface Blur64Output {
-  base64: string | null;
-  metadata: {
-    width: number;
-    height: number;
-    format: string;
-  } | null;
+export interface Blur64ImageData {
+  height: number;
+  width: number;
+  blurDataURL?: string;
 }
 
 export class Blur64Error extends Error {
@@ -32,10 +34,7 @@ export class Blur64Error extends Error {
   }
 }
 
-async function fetchBuffer(
-  url: string,
-  retries: number
-): Promise<Blur64Options["src"]> {
+async function fetchBuffer(url: string, retries: number, retryDelay: number): Promise<Blur64Options["src"]> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetch(url);
@@ -46,97 +45,144 @@ async function fetchBuffer(
         console.warn("[blur64] Failed to fetch image from URL:", e);
         return "";
       }
-      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      await new Promise((r) => setTimeout(r, retryDelay * (attempt + 1)));
     }
   }
   return "";
 }
 
-export async function blur64Image(
-  input: string | Buffer | Blur64Options,
-  options?: Omit<Blur64Options, "src">
-): Promise<Blur64Output> {
+export async function blur64Image(input: string | Buffer | Blur64Options, options?: Omit<Blur64Options, "src">): Promise<Blur64ImageData> {
+  const inputOptions: Blur64Options = input instanceof Object && "src" in input ? input : options instanceof Object ? { ...options, src: input } : { src: input };
+
   const {
     src,
-    size,
-    scale = 0.1,
-    blurRadius = 10,
-    quality = 50,
+    scale,
+    size = !inputOptions.scale && !inputOptions.size ? 24 : inputOptions.size,
+    ratio,
+    blurRadius = 4,
+    quality = 20,
     format = "avif",
+    formatOptions = {},
     brightness = 1,
     saturation = 1.2,
     hue = 0,
     lightness = 0,
-    fit = "fill",
-    kernel = "lanczos2",
+    fit = "inside",
+    kernel = "lanczos3",
     retries = 2,
-  }: Blur64Options = input instanceof Object && "src" in input
-    ? input
-    : options instanceof Object
-    ? { ...options, src: input }
-    : { src: input };
+    retryDelay = 300,
+  }: Blur64Options = inputOptions;
 
-  if (!src || (typeof src !== "string" && !Buffer.isBuffer(src))) {
-    throw new Blur64Error("src is required");
-  }
-
-  if (size && (size.width <= 0 || size.height <= 0)) {
-    throw new Blur64Error("size must be positive");
-  }
-
-  if (typeof scale !== "number" || scale <= 0 || scale > 1) {
-    throw new Blur64Error("scale must be between 0 and 1");
-  }
-
-  if (typeof blurRadius !== "number" || blurRadius < 0) {
-    throw new Blur64Error("blurRadius must be >= 0");
-  }
+  if (!src || (typeof src !== "string" && !Buffer.isBuffer(src))) throw new Blur64Error("src is required");
+  if (typeof scale === "number" && (scale <= 0 || scale > 1)) throw new Blur64Error("scale must be between 0 and 1");
+  if (size && ((typeof size === "number" && size <= 0) || (typeof size === "object" && (size.width <= 0 || size.height <= 0)))) throw new Blur64Error("size value(s) must be positive");
+  if (ratio && ((typeof ratio === "number" && ratio <= 0) || (typeof ratio === "object" && (ratio.width <= 0 || ratio.height <= 0)))) throw new Blur64Error("ratio value(s) must be positive");
+  if (typeof blurRadius !== "number" || blurRadius <= 0) throw new Blur64Error("blurRadius must be > 0 or false");
+  if (typeof quality !== "number" || quality < 0 || quality > 100) throw new Blur64Error("quality must be between 0 and 100");
+  if (typeof format !== "string" || !supportedFormats.includes(format)) throw new Blur64Error(`Invalid format option: ${format}`);
+  if (formatOptions && typeof formatOptions !== "object") throw new Blur64Error("formatOptions must be an object");
+  if (typeof brightness !== "number" || brightness < 0) throw new Blur64Error("brightness must be >= 0");
+  if (typeof saturation !== "number" || saturation < 0) throw new Blur64Error("saturation must be >= 0");
+  if (typeof hue !== "number") throw new Blur64Error("hue must be a number");
+  if (typeof lightness !== "number") throw new Blur64Error("lightness must be a number");
+  if (typeof fit !== "string" || !sharp.fit[fit]) throw new Blur64Error(`Invalid fit option: ${fit}`);
+  if (typeof kernel !== "string" || !sharp.kernel[kernel]) throw new Blur64Error(`Invalid kernel option: ${kernel}`);
+  if (typeof retries !== "number" || retries < 0) throw new Blur64Error("retries must be a non-negative integer");
+  if (typeof retryDelay !== "number" || retryDelay < 0) throw new Blur64Error("retryDelay must be a non-negative integer");
 
   let imageBuffer: Blur64Options["src"] = src;
 
   if (typeof src === "string" && /^https?:\/\//.test(src)) {
-    imageBuffer = await fetchBuffer(src, retries);
-    if (!imageBuffer) return { base64: null, metadata: null };
+    imageBuffer = await fetchBuffer(src, retries, retryDelay);
+    if (!Buffer.isBuffer(imageBuffer)) {
+      return { width: 0, height: 0, blurDataURL: undefined };
+    }
   }
 
   const image = sharp(imageBuffer, { failOn: "error" });
 
   const metadata = await image.metadata();
-  if (!metadata.width || !metadata.height) {
-    console.warn("[blur64] Failed to read image metadata");
-    return { base64: null, metadata: null };
+  if (!metadata.width || !metadata.height) throw new Blur64Error("Failed to read image metadata");
+
+  const originalRatio = metadata.width / metadata.height;
+  const targetRatio = ratio
+    ? typeof ratio === "number"
+      ? ratio
+      : ratio.width / ratio.height
+    : originalRatio;
+
+  let targetWidth: number, targetHeight: number;
+
+  if (typeof size === "number") {
+    targetHeight = targetWidth = Math.max(4, Math.floor(size));
+    if (originalRatio >= 1) {
+      targetWidth = Math.max(4, Math.floor(targetHeight * targetRatio));
+    } else {
+      targetHeight = Math.max(4, Math.floor(targetWidth / targetRatio));
+    }
+  } else if (typeof size === "object") {
+    targetWidth = Math.max(4, Math.floor(size.width));
+    targetHeight = Math.max(4, Math.floor(size.height));
+    if (ratio) {
+      if (targetWidth / targetHeight >= targetRatio) {
+        targetWidth = Math.max(4, Math.floor(targetHeight * targetRatio));
+      } else {
+        targetHeight = Math.max(4, Math.floor(targetWidth / targetRatio));
+      }
+    }
+  } else if (typeof scale === "number") {
+    targetWidth = Math.floor(metadata.width * scale);
+    targetHeight = Math.floor(metadata.height * scale);
+    if (originalRatio >= 1) {
+      targetHeight = Math.max(4, targetHeight);
+      targetWidth = Math.max(4, Math.floor(targetHeight * targetRatio));
+    } else {
+      targetWidth = Math.max(4, targetWidth);
+      targetHeight = Math.max(4, Math.floor(targetWidth / targetRatio));
+    }
+  } else {
+    if (originalRatio >= 1) {
+      targetHeight = Math.max(4, Math.floor(metadata.height * 0.1));
+      targetWidth = Math.max(4, Math.floor(targetHeight * targetRatio));
+    } else {
+      targetWidth = Math.max(4, Math.floor(metadata.width * 0.1));
+      targetHeight = Math.max(4, Math.floor(targetWidth / targetRatio));
+    }
   }
 
-  const targetWidth =
-    size?.width ?? Math.max(4, Math.floor(metadata.width * scale));
-  const targetHeight =
-    size?.height ?? Math.max(4, Math.floor(metadata.height * scale));
-
-  let base64: string | null = null;
+  let blurDataURL: string | undefined = undefined;
   try {
     const processed = await image
-      .clone()
       .resize(targetWidth, targetHeight, {
         fit,
         withoutEnlargement: true,
         kernel,
       })
       .modulate({ brightness, saturation, hue, lightness })
-      .toFormat(format, { quality })
+      .toFormat(format, { quality, ...formatOptions })
       .blur(blurRadius)
       .toBuffer();
-    base64 = `data:image/${format};base64,${processed.toString("base64")}`;
+    blurDataURL = `data:image/${format};base64,${processed.toString("base64")}`;
   } catch (e) {
     console.warn("[blur64] Failed to process image:", e);
-    return { base64: null, metadata: null };
+    return { width: 0, height: 0, blurDataURL: undefined };
   }
 
   return {
-    base64,
-    metadata: {
-      width: metadata.width,
-      height: metadata.height,
-      format: metadata.format || format,
-    },
+    width: metadata.width,
+    height: metadata.height,
+    blurDataURL
   };
+}
+
+export async function blur64Action(input: string | Buffer | Blur64Options, options?: Omit<Blur64Options, "src">): Promise<Blur64ImageData> {
+  'use server';
+  return blur64Image(input, options);
+}
+
+export async function blur64NextImageData(input: string | Buffer | Blur64Options, options?: Omit<Blur64Options, "src">): Promise<Blur64ImageData & { placeholder?: "blur" | "empty" }> {
+  'use server';
+  const result = await blur64Image(input, options);
+  const placeholder = result?.blurDataURL ? "blur" : undefined;
+  return { ...result, placeholder };
 }
