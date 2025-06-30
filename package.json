@@ -1,6 +1,6 @@
 {
   "name": "blur64",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Generate base64-encoded blurred image placeholders using Sharp.",
   "author": "devbux",
   "license": "MIT",
@@ -22,7 +22,8 @@
     "build": "npm run build:esm && npm run build:cjs && npm run build:types",
     "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --external:sharp --minify --tree-shaking=true --platform=node",
     "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.cjs --external:sharp --minify --tree-shaking=true --platform=node",
-    "build:types": "tsc --emitDeclarationOnly"
+    "build:types": "tsc --emitDeclarationOnly",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "image",
