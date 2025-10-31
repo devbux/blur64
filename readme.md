@@ -1,12 +1,13 @@
 # blur64
 
-A lightweight package for generating base64-encoded blurred image placeholders from image sources (file path, buffer, or URL) using [Sharp](https://sharp.pixelplumbing.com/).
+Generate tiny, base64-encoded blurred placeholders from images (file path, URL, or Buffer) using [Sharp](https://sharp.pixelplumbing.com/). Ideal for `<Image />` placeholders and progressive loading.
 
 ## Features
 
-- **Input Flexibility**: Supports file paths, buffers, or URLs.
-- **Customizable Output**: Adjust size, scale, blur radius, format (`avif`, `jpeg`, `png`, `webp`), quality, and color adjustments (brightness, saturation, hue, lightness).
-- **Server-Side Usage Only** : Since it's using `sharp`.
+- **Flexible input**: file path, URL, or `Buffer`
+- **Tiny output**: downscale + blur yields very small data URLs
+- **Configurable**: size/scale, blur strength, format (`avif`, `webp`, `jpeg`, `png`), quality, and color tweaks
+- **Next.js helpers**: server actions tailored for App Router via `blur64/nextjs`
 
 ## Installation
 
@@ -14,111 +15,95 @@ A lightweight package for generating base64-encoded blurred image placeholders f
 npm install blur64 sharp
 ```
 
-**Note**: `sharp` is a peer dependency and must be installed separately.
+`sharp` is a peer dependency and must be installed in your project.
 
-## Usage
+## Quick start (Node.js)
 
-### Basic Example
-
-```javascript
+```ts
 import { blur64Image } from "blur64";
 
-async function example() {
-  const result = await blur64Image({
-    src: "https://example.com/image.jpg", // or 'local/path/to/image.jpg' or Buffer
-    scale: 0.1,
-    blurRadius: 8,
-    format: "avif",
-    retries: 3, // only when using URL as src
-  });
+const result = await blur64Image({
+  src: "https://example.com/image.jpg", // file path or Buffer also supported
+  size: 24,
+  blurRadius: 8,
+  format: "avif",
+});
 
-  console.log(result.blurDataURL); // data:image/avif;base64,...
-  console.log(result.width, result.height); // Original dimensions
-}
+console.log(result.blurDataURL); // data:image/avif;base64,...
+console.log(result.width, result.height);
 ```
 
-### Next.js (App Router) Example
-
-Use `blur64` in a Next.js app to generate blurred image placeholders server-side.
+## Next.js (App Router)
 
 ```tsx
 // app/page.tsx
 import Image from "next/image";
-import { blur64NextImageData } from "blur64";
+import { blur64NextImageData } from "blur64/nextjs";
 
-export default async function Home() {
-  const placeholderData = await blur64NextImageData("https://example.com/image.jpg");
-
-  return (
-    <div>
-      <Image
-        src="https://example.com/image.jpg"
-        alt="Example image"
-        {...placeholderData}
-      />
-    </div>
-  );
+export default async function Page() {
+  const placeholder = await blur64NextImageData("https://example.com/image.jpg");
+  return <Image src="https://example.com/image.jpg" alt="Demo" {...placeholder} />;
 }
 ```
 
-### Error Handling
+### Error handling
 
-```javascript
+```ts
 import { blur64Image, Blur64Error } from "blur64";
 
-async function example() {
-  try {
-    const result = await blur64Image("invalid/path.jpg");
-    console.log(result);
-  } catch (error) {
-    error instanceof Blur64Error ? console.error(error.message) : console.error("Unexpected error:", error);
-  }
+try {
+  const result = await blur64Image("invalid/path.jpg");
+  console.log(result);
+} catch (error) {
+  if (error instanceof Blur64Error) console.error(error.message);
+  else console.error("Unexpected error:", error);
 }
 ```
 
-## API Reference
+## API
 
-### Functions
+### Core (from `blur64`)
 
-#### Main: `blur64Image(input: string (file path or URL) | Buffer | Blur64Options, options?: Omit<Blur64Options, 'src'>): Promise<Blur64ImageData>`
+`blur64Image(input: string | Buffer | Blur64Options, options?: Omit<Blur64Options, 'src'>): Promise<Blur64ImageData>`
 
-#### React Server Function/Action for React Server Components (uses `use server` directive): `blur64Action(input: string | Buffer | Blur64Options, options?: Omit<Blur64Options, 'src'>): Promise<Blur64ImageData>`
+### Next.js helpers (from `blur64/nextjs`)
 
-#### Next.js (App Router) Server Function/Action (uses `use server` directive): `blur64NextImageData(input: string | Buffer | Blur64Options, options?: Omit<Blur64Options, 'src'>): Promise<Blur64ImageData & { placeholder?: "blur" | "empty" }>`
+- `blur64Action(input, options?)`
+- `blur64NextImageData(input, options?): Promise<Blur64ImageData & { placeholder?: "blur" | "empty" }>`
 
-- The returned `placeholder` property is intended for use with Next.js's `<Image />` component; it will be set to `"blur"` if a blurred placeholder is generated, or `undefined` if not.
+`placeholder` is `"blur"` only when a valid `blurDataURL` is produced.
 
-### Parameters
+## Options (`Blur64Options`)
 
-- `input`: Image source (`string` for file path or URL, `Buffer` for raw image data) or `Blur64Options` object.
-- `options` (optional): Configuration options when `input` is a `string` or `Buffer`.
-
-### Options (`Blur64Options`)
-
-| Option          | Type                                                             | Default      | Description                                                           |
-| --------------- | ---------------------------------------------------------------- | ------------ | --------------------------------------------------------------------- |
-| `src`           | `string` \| `Buffer`                                             | -            | **Required**. Image source (file path, URL, or buffer).               |
-| `scale`         | `number` (0 < scale ≤ 1)                                         | -            | Scaling factor for output size relative to original dimensions.       |
-| `size`          | `number` \| `{ width: number, height: number }`                  | `24`         | Target dimensions. If omitted, uses `scale` with original dimensions. |
-| `ratio`         | `number` \| `{ width: number, height: number }`                  | -            | Target aspect ratio. Defaults to original image ratio.                |
-| `blurRadius`    | `number` (≥ 0)                                                   | `4`          | Blur radius for Gaussian blur effect.                                 |
-| `quality`       | `number` (0–100)                                                 | `20`         | Quality for lossy formats (`avif`, `webp`, `jpeg`).                   |
-| `format`        | `"avif" \| "jpeg" \| "png" \| "webp"`                            | `"avif"`     | Output image format.                                                  |
-| `formatOptions` | `object`                                                         | -            | Options for the output format (see `sharp` docs).                     |
-| `brightness`    | `number`                                                         | `1`          | Brightness adjustment multiplier.                                     |
-| `saturation`    | `number`                                                         | `1.2`        | Saturation adjustment multiplier.                                     |
-| `hue`           | `number`                                                         | `0`          | Hue rotation in degrees.                                              |
-| `lightness`     | `number`                                                         | `0`          | Lightness adjustment.                                                 |
-| `fit`           | `"contain" \| "cover" \| "fill" \| "inside" \| "outside"`        | `"inside"`   | Resize fit mode (see `sharp` docs).                                   |
-| `kernel`        | `"nearest" \| "cubic" \| "mitchell" \| "lanczos2" \| "lanczos3"` | `"lanczos3"` | Resize kernel (see `sharp` docs).                                     |
-| `retries`       | `number`                                                         | `2`          | Number of retry attempts for URL fetches.                             |
-| `retryDelay`    | `number`                                                         | `300`        | Delay (ms) between URL fetch retries.                                 |
+| Option          | Type                                                             | Default | Description                                                                 |
+| --------------- | ---------------------------------------------------------------- | ------- | --------------------------------------------------------------------------- |
+| `src`           | `string` \| `Buffer`                                             | —       | Image source (file path, URL, or buffer).                                   |
+| `scale`         | `number` (0 < scale ≤ 1)                                         | —       | Scale factor relative to original dimensions.                                |
+| `size`          | `number` \| `{ width: number, height: number }`                  | `24`    | Target size; when omitted, a small default is used.                          |
+| `ratio`         | `number` \| `{ width: number, height: number }`                  | —       | Target aspect ratio; defaults to original.                                   |
+| `blurRadius`    | `number` (> 0) \| `false` \| `BlurOptions`                        | `4`     | Blur strength; `false` disables blur.                                        |
+| `quality`       | `number` (0–100)                                                 | `20`    | Quality for lossy formats.                                                   |
+| `format`        | `"avif"` \| `"jpeg"` \| `"png"` \| `"webp"`                            | `"avif"` | Output format.                                                                |
+| `formatOptions` | `object`                                                         | —       | Extra options for the selected format (see Sharp docs).                      |
+| `brightness`    | `number`                                                         | `1`     | Brightness multiplier.                                                       |
+| `saturation`    | `number`                                                         | `1.2`   | Saturation multiplier.                                                       |
+| `hue`           | `number`                                                         | `0`     | Hue rotation in degrees.                                                     |
+| `lightness`     | `number`                                                         | `0`     | Lightness adjustment.                                                        |
+| `fit`           | `"contain"` \| `"cover"` \| `"fill"` \| `"inside"` \| `"outside"`       | `"inside"` | Resize fit mode.                                                              |
+| `kernel`        | `"nearest"` \| `"cubic"` \| `"mitchell"` \| `"lanczos2"` \| `"lanczos3"` | `"lanczos3"` | Resize kernel.                                                                |
+| `retries`       | `number`                                                         | `2`     | Retry attempts for URL fetches.                                              |
+| `retryDelay`    | `number` (ms)                                                    | `300`   | Delay between retries for URL fetches.                                       |
 
 ### Returns (`Blur64ImageData`)
 
-- `width`: `number` - Original image width.
-- `height`: `number` - Original image height.
-- `blurDataURL`: `string | undefined` - Base64-encoded blurred image (e.g., `data:image/webp;base64,...`).
+- `width`: original image width
+- `height`: original image height
+- `blurDataURL`: base64 data URL (or `undefined` on failure)
+
+## Notes
+
+- Server-side only (uses `sharp`). Works in Node.js and Next.js server runtimes.
+- In plain Node.js, Next.js-specific fetch hints are ignored harmlessly.
 
 ## License
 

@@ -4,7 +4,14 @@
   "description": "Generate base64-encoded blurred image placeholders using Sharp.",
   "author": "devbux",
   "license": "MIT",
-  "repository": "devbux/blur64.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devbux/blur64.git"
+  },
+  "homepage": "https://devbux.github.io/blur64",
+  "bugs": {
+    "url": "https://github.com/devbux/blur64/issues"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -13,15 +20,22 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
+    },
+    "./nextjs": {
+      "types": "./dist/nextjs.d.ts",
+      "import": "./dist/nextjs.mjs",
+      "require": "./dist/nextjs.cjs"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "npm run build:esm && npm run build:cjs && npm run build:types",
+    "build": "npm run build:esm && npm run build:cjs && npm run build:nextjs:esm && npm run build:nextjs:cjs && npm run build:types",
     "build:esm": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.mjs --external:sharp --minify --tree-shaking=true --platform=node",
     "build:cjs": "esbuild src/index.ts --bundle --format=cjs --outfile=dist/index.cjs --external:sharp --minify --tree-shaking=true --platform=node",
+    "build:nextjs:esm": "esbuild src/nextjs.ts --bundle --format=esm --outfile=dist/nextjs.mjs --external:sharp --minify --tree-shaking=true --platform=node",
+    "build:nextjs:cjs": "esbuild src/nextjs.ts --bundle --format=cjs --outfile=dist/nextjs.cjs --external:sharp --minify --tree-shaking=true --platform=node",
     "build:types": "tsc --emitDeclarationOnly",
     "prepublishOnly": "npm run build"
   },
