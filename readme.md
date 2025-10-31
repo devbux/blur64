@@ -1,6 +1,6 @@
 # blur64
 
-Generate tiny, base64-encoded blurred placeholders from images (file path, URL, or Buffer) using [Sharp](https://sharp.pixelplumbing.com/). Ideal for `<Image />` placeholders and progressive loading.
+Generate tiny, base64-encoded blurred placeholders from images (file path, URL, or Buffer) using [Sharp](https://sharp.pixelplumbing.com/).
 
 ## Features
 

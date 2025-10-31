@@ -1,6 +1,6 @@
 {
   "name": "blur64",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Generate base64-encoded blurred image placeholders using Sharp.",
   "author": "devbux",
   "license": "MIT",
@@ -52,11 +52,11 @@
     "sharp": "^0.34.2"
   },
   "devDependencies": {
-    "@types/node": "^22.15.29",
-    "@types/sharp": "^0.31.1",
-    "esbuild": "^0.24.2",
-    "sharp": "^0.34.2",
-    "typescript": "^5.8.3"
+    "@types/node": "^24.9.2",
+    "@types/sharp": "^0.32.0",
+    "esbuild": "^0.25.11",
+    "sharp": "^0.34.4",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20"
