@@ -1,6 +1,6 @@
 {
   "name": "blur64",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Generate base64-encoded blurred image placeholders using Sharp.",
   "author": "devbux",
   "license": "MIT",
