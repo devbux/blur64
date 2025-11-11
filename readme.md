@@ -6,8 +6,9 @@ Generate tiny, base64-encoded blurred placeholders from images (file path, URL, 
 
 - **Flexible input**: file path, URL, or `Buffer`
 - **Tiny output**: downscale + blur yields very small data URLs
-- **Configurable**: size/scale, blur strength, format (`avif`, `webp`, `jpeg`, `png`), quality, and color tweaks
-- **Next.js helpers**: server actions tailored for App Router via `blur64/nextjs`
+- **Configurable**: size/scale, blur strength, format (`avif`, `webp`, `jpeg`, `png`), quality, color adjustments, and more
+- **Next.js helpers**: server actions with ISR support tailored for App Router via `blur64/nextjs`
+- **Network resilience**: automatic retry logic with exponential backoff for URL fetches
 
 ## Installation
 
@@ -68,10 +69,10 @@ try {
 
 ### Next.js helpers (from `blur64/nextjs`)
 
-- `blur64Action(input, options?)`
-- `blur64NextImageData(input, options?): Promise<Blur64ImageData & { placeholder?: "blur" | "empty" }>`
+- `blur64Action(input, options?: Omit<Blur64NextOptions, 'src'>): Promise<Blur64ImageData>`: Server action wrapper with error handling
+- `blur64NextImageData(input, options?): Promise<Blur64ImageData & { placeholder?: "blur" | "empty" }>`: Optimized for Next.js Image component
 
-`placeholder` is `"blur"` only when a valid `blurDataURL` is produced.
+`placeholder` is `"blur"` when a valid `blurDataURL` is produced, or `"empty"` otherwise.
 
 ## Options (`Blur64Options`)
 
@@ -93,6 +94,13 @@ try {
 | `kernel`        | `"nearest"` \| `"cubic"` \| `"mitchell"` \| `"lanczos2"` \| `"lanczos3"` | `"lanczos3"` | Resize kernel.                                                                |
 | `retries`       | `number`                                                         | `2`     | Retry attempts for URL fetches.                                              |
 | `retryDelay`    | `number` (ms)                                                    | `300`   | Delay between retries for URL fetches.                                       |
+| `timeout`       | `number` (ms)                                                    | `30000` | Request timeout for URL fetches.                                             |
+
+### Next.js-Specific Options (`Blur64NextOptions` extends `Blur64Options`)
+
+| Option          | Type                  | Default | Description                                                                 |
+| --------------- | --------------------- | ------- | --------------------------------------------------------------------------- |
+| `revalidate`    | `number` \| `false`   | `86400` | ISR revalidation time in seconds (24 hours); `false` disables caching. Next.js only. |
 
 ### Returns (`Blur64ImageData`)
 
@@ -103,7 +111,6 @@ try {
 ## Notes
 
 - Server-side only (uses `sharp`). Works in Node.js and Next.js server runtimes.
-- In plain Node.js, Next.js-specific fetch hints are ignored harmlessly.
 
 ## License
 
