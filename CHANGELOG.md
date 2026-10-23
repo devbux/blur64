@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-10-23
+
+### Added
+
+- Verified full compatibility with the current React and Next.js:
+  blur64 1.3.2 was exercised end-to-end in a real Next.js 16.4 /
+  React 19.3 app (Turbopack production build, static prerendering,
+  route handlers, `next/image` blur placeholder) with no changes
+  required. The README's Next.js section now states the verified
+  versions, and the package keywords include `nextjs` and `react`.
+  No code changes; outputs are identical to 1.3.1/1.3.2.
+
 ## [1.3.2] - 2026-10-23
 
 ### Changed

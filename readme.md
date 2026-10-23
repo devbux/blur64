@@ -95,6 +95,12 @@ try {
 
 ## Next.js (App Router)
 
+**Compatibility:** built for the App Router and React Server Components, and
+verified end-to-end on **Next.js 16.4** with **React 19.3** — Turbopack
+production build, static prerendering, route handlers, and the `next/image`
+blur placeholder all exercised against the published package. The helpers run
+entirely on the server and need no client-side JavaScript.
+
 Import the helpers from `blur64/nextjs`:
 
 ```tsx
