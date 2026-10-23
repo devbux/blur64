@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-23
+
+### Compatibility release
+
+- Widened the `sharp` peer range to `^0.33.5 || ^0.34.2 || ^0.35.0`, each
+  version verified against this code: the API and dimensions are identical
+  on all three, and on sharp 0.34.5 the new code reproduces the original
+  v1.3.0 outputs byte-for-byte — existing apps are unaffected unless they
+  upgrade sharp themselves.
+- The public API is unchanged and is now pinned by an explicit
+  backward-compatibility test suite (`test/compat.test.ts`): export names,
+  both call styles, the Next.js helpers' result shapes, the entry points,
+  and the peer range.
+- Reference outputs (golden tests) were recaptured on sharp 0.35.5: with
+  the new libvips encoder, 15 of 19 cases produce slightly different
+  bytes (the default AVIF placeholder grows from 423 to 447 characters).
+  Sizes, dimensions, and behaviour are otherwise identical.
+
+### Changed
+
+- Updated the development toolchain to the latest releases: sharp 0.35.5,
+  tsup 9, vitest 5, @types/node 26. TypeScript is 6.0.3 — TypeScript 7's
+  native compiler is not yet compatible with tsup 9's declaration
+  pipeline (verified), and will be adopted when it is.
+- CI now also runs on Node 24 (matrix: 20, 22, 24).
+
 ## [1.3.3] - 2026-10-23
 
 ### Added

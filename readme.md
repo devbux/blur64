@@ -22,8 +22,9 @@ example as a Next.js `blurDataURL`) while the full image loads.
 
 ## Requirements
 
-- Node.js **>= 20**
-- `sharp` (a peer dependency — install it alongside `blur64`)
+- Node.js **>= 20** (CI runs 20, 22, and 24)
+- `sharp` **^0.33.5, ^0.34.2, or ^0.35.0** (a peer dependency — install it
+  alongside `blur64`)
 
 ## Installation
 
@@ -180,6 +181,29 @@ Extends `Blur64Options` with:
 - URL fetches are retried with exponential backoff (`retries`, `retryDelay`,
   `timeout`); a fetch that still fails resolves to empty data rather than
   throwing.
+
+## Compatibility
+
+blur64 is built to be safe to depend on:
+
+- **Stable API.** The public surface — `blur64Image`, `blur64Action`,
+  `blur64NextImageData`, `Blur64Error`, `supportedFormats`, the option and
+  result types, and both entry points (`blur64`, `blur64/nextjs`) — does
+  not change in minor or patch releases. An explicit compatibility test
+  suite pins it, so an accidental breaking change fails CI.
+- **Wide sharp support.** The peer range covers sharp 0.33, 0.34, and 0.35,
+  each verified against this code. Your app keeps the sharp version it
+  already has; blur64 does not force an upgrade.
+- **Stable output per sharp version.** The placeholder bytes come from
+  sharp's encoder, so they can differ between sharp versions — but for a
+  given sharp version the output is pinned byte-for-byte by golden tests
+  and does not drift between blur64 releases. (On sharp 0.34.5, blur64
+  1.4.0 reproduces the original v1.3.0 outputs exactly.)
+- **Both module systems.** Every entry point ships ESM and CommonJS builds
+  with types, so `import` and `require` consumers are equally supported.
+- **Next.js / React.** The `blur64/nextjs` helpers target the App Router
+  (Next.js 13.4+) and React Server Components (React 18+); verified
+  end-to-end on Next.js 16.4 / React 19.3.
 
 ## Development
 
