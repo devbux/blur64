@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { Blur64Options } from './types';
+import { Blur64Options, Blur64ImageData, Blur64Error } from './types';
 
 const MIN_DIMENSION = 4;
 
@@ -120,15 +120,130 @@ export async function processImage(
   }
 }
 
-export function normalizeInputOptions(
-  input: string | Buffer | Blur64Options,
-  options?: Omit<Blur64Options, 'src'>
-): Blur64Options {
+export function normalizeInputOptions<T extends Blur64Options>(
+  input: string | Buffer | T,
+  options?: Omit<T, 'src'>
+): T {
   if (typeof input === 'object' && input !== null && 'src' in input) {
-    return input as Blur64Options;
+    return input as T;
   }
   if (typeof options === 'object' && options !== null) {
-    return { ...options, src: input as string | Buffer };
+    return { ...options, src: input as string | Buffer } as T;
   }
-  return { src: input as string | Buffer };
+  return { src: input as string | Buffer } as T;
+}
+
+/** Options with every default applied — the values that define blur64's output. */
+export interface ResolvedBlur64Options {
+  src: string | Buffer;
+  scale?: number;
+  size?: number | { width: number; height: number };
+  ratio?: number | { width: number; height: number };
+  blurRadius: number | false | sharp.BlurOptions;
+  quality: number;
+  format: typeof import('./types').supportedFormats[number];
+  formatOptions:
+    | sharp.OutputOptions
+    | sharp.AvifOptions
+    | sharp.WebpOptions
+    | sharp.JpegOptions
+    | sharp.PngOptions;
+  brightness: number;
+  saturation: number;
+  hue: number;
+  lightness: number;
+  fit: keyof sharp.FitEnum;
+  kernel: keyof sharp.KernelEnum;
+  retries: number;
+  retryDelay: number;
+  timeout: number;
+}
+
+/**
+ * Apply the documented defaults. The exact values — and quirks, such as
+ * `size` defaulting to 24 only when neither `scale` nor `size` is given —
+ * are part of the package's behaviour and must not drift.
+ */
+export function resolveOptions(inputOptions: Blur64Options): ResolvedBlur64Options {
+  const {
+    src,
+    scale,
+    size = !inputOptions.scale && !inputOptions.size ? 24 : inputOptions.size,
+    ratio,
+    blurRadius = 4,
+    quality = 20,
+    format = 'avif',
+    formatOptions = {},
+    brightness = 1,
+    saturation = 1.2,
+    hue = 0,
+    lightness = 0,
+    fit = 'inside',
+    kernel = 'lanczos3',
+    retries = 2,
+    retryDelay = 300,
+    timeout = 30000,
+  } = inputOptions;
+
+  return {
+    src,
+    scale,
+    size,
+    ratio,
+    blurRadius,
+    quality,
+    format,
+    formatOptions,
+    brightness,
+    saturation,
+    hue,
+    lightness,
+    fit,
+    kernel,
+    retries,
+    retryDelay,
+    timeout,
+  };
+}
+
+/** Shared tail of the core and Next.js pipelines: metadata, resize, process. */
+export async function generateBlurData(
+  imageBuffer: Buffer | string,
+  resolved: ResolvedBlur64Options
+): Promise<Blur64ImageData> {
+  const image = sharp(imageBuffer, {
+    failOn: 'error',
+    sequentialRead: true,
+  });
+
+  const metadata = await image.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Blur64Error('Failed to read image metadata');
+  }
+
+  const { width: targetWidth, height: targetHeight } = calculateTargetDimensions(
+    { width: metadata.width, height: metadata.height },
+    resolved.size,
+    resolved.scale,
+    resolved.ratio
+  );
+
+  const blurDataURL = await processImage(image, targetWidth, targetHeight, {
+    fit: resolved.fit,
+    kernel: resolved.kernel,
+    brightness: resolved.brightness,
+    saturation: resolved.saturation,
+    hue: resolved.hue,
+    lightness: resolved.lightness,
+    format: resolved.format,
+    quality: resolved.quality,
+    formatOptions: resolved.formatOptions,
+    blurRadius: resolved.blurRadius,
+  });
+
+  return {
+    width: metadata.width,
+    height: metadata.height,
+    blurDataURL,
+  };
 }

@@ -1,67 +1,28 @@
-export async function fetchBuffer(
-  url: string,
-  retries: number,
-  retryDelay: number,
-  timeout: number
-): Promise<Buffer | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-      });
+type FetchInit = RequestInit & { next?: { revalidate?: number | false } };
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const buffer = Buffer.from(await response.arrayBuffer());
-      return buffer;
-    } catch (e) {
-      const isLastAttempt = attempt === retries;
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      const attemptNumber = attempt + 1;
-      const remainingAttempts = retries - attempt;
+type FetchInitCustomizer = (init: FetchInit) => void;
 
-      if (isLastAttempt) {
-        console.warn(`[blur64] Fetch attempt ${attemptNumber} failed: ${errorMessage}. No more attempts remaining.`);
-        return null;
-      }
-
-      const delay = retryDelay * (1 << attempt);
-      const delaySeconds = (delay / 1000).toFixed(2);
-
-      console.warn(
-        `[blur64] Fetch attempt ${attemptNumber} failed: ${errorMessage}. Will retry in ${delaySeconds}s. ${remainingAttempts} attempt(s) remaining.`
-      );
-
-      await new Promise(r => setTimeout(r, delay));
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-  return null;
-}
-
-export async function fetchBufferNext(
+/**
+ * Shared retrying fetch: up to `retries` additional attempts with
+ * exponential backoff (`retryDelay * 2^attempt`), an AbortController
+ * timeout per attempt, and a Buffer of the response body on success.
+ * Returns null after the final failed attempt.
+ */
+async function fetchWithRetries(
   url: string,
   retries: number,
   retryDelay: number,
   timeout: number,
-  revalidate?: number | false
+  customizeInit?: FetchInitCustomizer
 ): Promise<Buffer | null> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
     try {
-      const init: RequestInit & { next?: { revalidate?: number | false } } = {
+      const init: FetchInit = {
         signal: controller.signal,
       };
-
-      if (typeof revalidate === 'number' && !isNaN(revalidate) && revalidate > 0) {
-        init.cache = 'force-cache';
-        init.next = { revalidate };
-      }
+      customizeInit?.(init);
 
       const response = await fetch(url, init);
 
@@ -94,4 +55,28 @@ export async function fetchBufferNext(
     }
   }
   return null;
+}
+
+export async function fetchBuffer(
+  url: string,
+  retries: number,
+  retryDelay: number,
+  timeout: number
+): Promise<Buffer | null> {
+  return fetchWithRetries(url, retries, retryDelay, timeout);
+}
+
+export async function fetchBufferNext(
+  url: string,
+  retries: number,
+  retryDelay: number,
+  timeout: number,
+  revalidate?: number | false
+): Promise<Buffer | null> {
+  return fetchWithRetries(url, retries, retryDelay, timeout, init => {
+    if (typeof revalidate === 'number' && !isNaN(revalidate) && revalidate > 0) {
+      init.cache = 'force-cache';
+      init.next = { revalidate };
+    }
+  });
 }

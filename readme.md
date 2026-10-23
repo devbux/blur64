@@ -115,3 +115,23 @@ try {
 ## License
 
 Licensed under the [MIT LICENSE](LICENSE).
+
+## Development
+
+```bash
+npm install
+npm run typecheck  # tsc --noEmit
+npm test           # vitest, including golden-output tests against v1.3.0
+npm run build      # bundle CJS + ESM + types to dist/ with tsup
+```
+
+The golden tests pin the exact output of the default settings (and a
+matrix of options), so refactors cannot silently change the placeholders
+the package generates.
+
+## Releasing
+
+Releases are published to npm by the **Publish to npm** GitHub Action:
+create a GitHub Release for the new version tag (or run the workflow
+manually), and the workflow typechecks, tests, builds, and publishes
+with provenance. It expects an `NPM_TOKEN` repository secret.

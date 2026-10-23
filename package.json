@@ -1,12 +1,12 @@
 {
   "name": "blur64",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Generate base64-encoded blurred image placeholders using Sharp.",
   "author": "devbux",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/devbux/blur64.git"
+    "url": "git+https://github.com/devbux/blur64.git"
   },
   "homepage": "https://devbux.github.io/blur64",
   "bugs": {
@@ -32,7 +32,9 @@
   ],
   "scripts": {
     "build": "tsup && node scripts/cleanup-dts.js",
-    "prepublishOnly": "npm run build"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "image",
@@ -47,12 +49,11 @@
     "sharp": "^0.34.2"
   },
   "devDependencies": {
-    "@types/node": "^24.9.2",
-    "@types/sharp": "^0.32.0",
-    "esbuild": "^0.25.11",
+    "@types/node": "^22.0.0",
     "sharp": "^0.34.4",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
   },
   "engines": {
     "node": ">=20"
